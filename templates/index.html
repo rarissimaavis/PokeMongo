@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokémon Trainers Manager</title>
+</head>
+<body>
+    <h1>Pokémon Trainers Manager</h1>
+    
+    <!-- Trainers CRUD Section -->
+    <div class="section">
+        <h2>Trainers Management</h2>
+        
+        <h3>Create Trainer</h3>
+        <input type="text" id="trainerID" placeholder="Trainer ID">
+        <input type="text" id="trainerName" placeholder="Name">
+        <button onclick="createTrainer()">Create Trainer</button>
+        
+        <h3>Get All Trainers</h3>
+        <button onclick="getAllTrainers()">Get Trainers</button>
+        <pre id="trainersList"></pre>
+        
+        <h3>Update Trainer</h3>
+        <input type="text" id="updateTrainerId" placeholder="Trainer ID to update">
+        <input type="text" id="newTrainerName" placeholder="New Name">
+        <button onclick="updateTrainer()">Update Trainer</button>
+        
+        <h3>Delete Trainer</h3>
+        <input type="text" id="deleteTrainerId" placeholder="Trainer ID to delete">
+        <button onclick="deleteTrainer()">Delete Trainer</button>
+    </div>
+    
+    <!-- Pokémon CRUD Section -->
+    <div class="section">
+        <h2>Pokémon Management</h2>
+        
+        <h3>Add Pokémon</h3>
+        <input type="text" id="pokemonID" placeholder="Pokémon ID">
+        <input type="text" id="pokemonName" placeholder="Name">
+        <input type="text" id="pokemonType" placeholder="Type">
+        <input type="number" id="pokemonLevel" placeholder="Level">
+        <input type="text" id="pokemonTrainerID" placeholder="Trainer ID">
+        <button onclick="addPokemon()">Add Pokémon</button>
+        
+        <h3>Get All Pokémon</h3>
+        <button onclick="getAllPokemon()">Get Pokémon</button>
+        <pre id="pokemonList"></pre>
+        
+        <h3>Update Pokémon Level</h3>
+        <input type="text" id="updatePokemonId" placeholder="Pokémon ID to update">
+        <input type="number" id="newPokemonLevel" placeholder="New Level">
+        <button onclick="updatePokemon()">Update Pokémon</button>
+        
+        <h3>Delete Pokémon</h3>
+        <input type="text" id="deletePokemonId" placeholder="Pokémon ID to delete">
+        <button onclick="deletePokemon()">Delete Pokémon</button>
+    </div>
+    
+    <!-- JOIN Operations Section -->
+    <div class="section">
+        <h2>JOIN Operations</h2>
+        
+        <h3>Get Trainer with Pokémon</h3>
+        <input type="text" id="trainerPokemonId" placeholder="Trainer ID">
+        <button onclick="getTrainerWithPokemon()">Get Trainer Pokémon</button>
+        <pre id="trainerPokemonResult"></pre>
+        
+        <h3>Get Strong Pokémon (Level ≥)</h3>
+        <input type="number" id="minLevel" placeholder="Minimum Level" value="30">
+        <button onclick="getStrongPokemon()">Find Strong Pokémon</button>
+        <pre id="strongPokemonResult"></pre>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:5000';
+        
+        // Helper function for API calls
+        async function callApi(endpoint, method = 'GET', data = null) {
+            const options = {
+                method,
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (data) options.body = JSON.stringify(data);
+            
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                const result = await response.json();
+                return { success: response.ok, data: result };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+        
+        // Display result in any pre element
+        function displayResult(elementId, result) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = JSON.stringify(result, null, 2);
+        }
+        
+        // Trainers CRUD
+        async function createTrainer() {
+            const trainer = {
+                trainerID: document.getElementById('trainerID').value,
+                name: document.getElementById('trainerName').value
+            };
+            const { success, data } = await callApi('/trainers', 'POST', trainer);
+            displayResult('trainersList', success ? data : 'Error creating trainer');
+        }
+        
+        async function getAllTrainers() {
+            const { success, data } = await callApi('/trainers');
+            displayResult('trainersList', success ? data : 'Error fetching trainers');
+        }
+        
+        async function updateTrainer() {
+            const trainerId = document.getElementById('updateTrainerId').value;
+            const newName = document.getElementById('newTrainerName').value;
+            const { success, data } = await callApi(`/trainers/${trainerId}`, 'PUT', { name: newName });
+            displayResult('trainersList', success ? data : 'Error updating trainer');
+        }
+        
+        async function deleteTrainer() {
+            const trainerId = document.getElementById('deleteTrainerId').value;
+            const { success, data } = await callApi(`/trainers/${trainerId}`, 'DELETE');
+            displayResult('trainersList', success ? data : 'Error deleting trainer');
+        }
+        
+        // Pokémon CRUD
+        async function addPokemon() {
+            const pokemon = {
+                pokemonID: document.getElementById('pokemonID').value,
+                name: document.getElementById('pokemonName').value,
+                type: document.getElementById('pokemonType').value,
+                level: parseInt(document.getElementById('pokemonLevel').value),
+                trainerID: document.getElementById('pokemonTrainerID').value
+            };
+            const { success, data } = await callApi('/pokemon', 'POST', pokemon);
+            displayResult('pokemonList', success ? data : 'Error adding Pokémon');
+        }
+        
+        async function getAllPokemon() {
+            const { success, data } = await callApi('/pokemon');
+            displayResult('pokemonList', success ? data : 'Error fetching Pokémon');
+        }
+        
+        async function updatePokemon() {
+            const pokemonId = document.getElementById('updatePokemonId').value;
+            const newLevel = document.getElementById('newPokemonLevel').value;
+            const { success, data } = await callApi(`/pokemon/${pokemonId}`, 'PUT', { level: newLevel });
+            displayResult('pokemonList', success ? data : 'Error updating Pokémon');
+        }
+        
+        async function deletePokemon() {
+            const pokemonId = document.getElementById('deletePokemonId').value;
+            const { success, data } = await callApi(`/pokemon/${pokemonId}`, 'DELETE');
+            displayResult('pokemonList', success ? data : 'Error deleting Pokémon');
+        }
+        
+        // JOIN Operations
+        async function getTrainerWithPokemon() {
+            const trainerId = document.getElementById('trainerPokemonId').value;
+            const { success, data } = await callApi(`/trainers/${trainerId}/pokemon`);
+            displayResult('trainerPokemonResult', success ? data : 'Error fetching trainer with Pokémon');
+        }
+        
+        async function getStrongPokemon() {
+            const minLevel = document.getElementById('minLevel').value;
+            const { success, data } = await callApi(`/trainers/with-pokemon-above/${minLevel}`);
+            if (success) {
+                console.log('Response data:', data);
+                displayResult('strongPokemonResult', data);
+            } else {
+                displayResult('strongPokemonResult', 'Error fetching strong Pokémon: ' + JSON.stringify(data));
+            }
+        }
+    </script>
+</body>
+</html>
