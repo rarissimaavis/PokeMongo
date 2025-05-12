@@ -203,7 +203,17 @@ def serve_index():
 def serve_static(filename):
     return send_from_directory('static', filename)
 
-# to-do
+@app.route('/pokemon')
+def pokemon_page():
+    return render_template('pokemon.html')
+
+@app.route('/trainers')
+def trainers_page():
+    return render_template('trainers.html')
+
+@app.route('/join')
+def join_page():
+    return render_template('join.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
