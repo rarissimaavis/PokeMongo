@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokémon Management</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <a href="/" class="nav-link">← Back to Home</a>
+        </nav>
+        
+        <h1>Pokémon Management</h1>
+        
+        <div class="section">
+            <h2>Add Pokémon</h2>
+            <form id="addPokemonForm" class="form">
+                <input type="text" id="pokemonID" placeholder="Pokémon ID" required>
+                <input type="text" id="pokemonName" placeholder="Name" required>
+                <input type="text" id="pokemonType" placeholder="Type" required>
+                <input type="number" id="pokemonLevel" placeholder="Level" required>
+                <input type="text" id="pokemonTrainerID" placeholder="Trainer ID" required>
+                <button type="button" onclick="addPokemon()">Add Pokémon</button>
+            </form>
+        </div>
+        
+        <div class="section">
+            <h2>All Pokémon</h2>
+            <button onclick="getAllPokemon()">Refresh List</button>
+            <pre id="pokemonList"></pre>
+        </div>
+        
+        <div class="section">
+            <h2>Update Pokémon</h2>
+            <form id="updatePokemonForm" class="form">
+                <input type="text" id="updatePokemonId" placeholder="Pokémon ID to update" required>
+                <input type="number" id="newPokemonLevel" placeholder="New Level" required>
+                <button type="button" onclick="updatePokemon()">Update Pokémon</button>
+            </form>
+        </div>
+        
+        <div class="section">
+            <h2>Delete Pokémon</h2>
+            <form id="deletePokemonForm" class="form">
+                <input type="text" id="deletePokemonId" placeholder="Pokémon ID to delete" required>
+                <button type="button" onclick="deletePokemon()">Delete Pokémon</button>
+            </form>
+        </div>
+    </div>
+    
+    <script src="/static/pokemon.js"></script>
+</body>
+</html>
