@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Operations</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <a href="/" class="nav-link">← Back to Home</a>
+        </nav>
+        
+        <h1>Join Operations</h1>
+        
+        <div class="section">
+            <h2>Get Trainer with Pokémon</h2>
+            <form id="trainerPokemonForm" class="form">
+                <input type="text" id="trainerPokemonId" placeholder="Trainer ID" required>
+                <button type="button" onclick="getTrainerWithPokemon()">Get Trainer Pokémon</button>
+            </form>
+            <pre id="trainerPokemonResult"></pre>
+        </div>
+        
+        <div class="section">
+            <h2>Get Strong Pokémon</h2>
+            <form id="strongPokemonForm" class="form">
+                <input type="number" id="minLevel" placeholder="Minimum Level" value="30" required>
+                <button type="button" onclick="getStrongPokemon()">Find Strong Pokémon</button>
+            </form>
+            <pre id="strongPokemonResult"></pre>
+        </div>
+    </div>
+    
+    <script src="/static/join.js"></script>
+</body>
+</html>
