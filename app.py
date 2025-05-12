@@ -91,7 +91,42 @@ def delete_pokemon(pokemon_id):
     return jsonify({"deleted_count": result.deleted_count})
 
 # --- JOIN Operations ---
-# todo
+@app.route('/trainers/<int:trainer_id>/pokemon', methods=['GET'])
+def get_trainer_pokemon(trainer_id):
+    """Get trainer with all their pokemon"""
+    try:
+        pipeline = [
+            {"$match": {"trainerID": trainer_id}},
+            {"$lookup": {
+                "from": "Pokemon",
+                "localField": "trainerID",
+                "foreignField": "trainerID",
+                "as": "pokemon"
+            }},
+            {"$project": {
+                "_id": 0,
+                "trainerID": 1,
+                "trainername": 1,
+                "pokemon": 1
+            }}
+        ]
+        
+        result = list(trainers_col.aggregate(pipeline))
+        if not result:
+            return jsonify({"error": "Trainer not found"}), 404
+
+        return jsonify({
+            "trainer": {
+                "trainerID": result[0]["trainerID"],
+                "trainername": result[0]["trainername"]
+            },
+            "pokemon": clean_id(result[0]["pokemon"])
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# to-do
 
 
 # --- Frontend Serving ---
