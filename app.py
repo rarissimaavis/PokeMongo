@@ -126,7 +126,71 @@ def get_trainer_pokemon(trainer_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# to-do
+@app.route('/trainers/with-pokemon-above/<int:min_level>', methods=['GET'])
+def get_trainers_with_strong_pokemon(min_level):
+    """Get trainers with Pokémon above specified level (optimized structure)"""
+    try:
+        pipeline = [
+            # Filter Pokémon collection for efficiency
+            {
+                "$match": {
+                    "pokelevel": {"$gt": min_level}
+                }
+            },
+            # Group by trainer and collect Pokemon details
+            {
+                "$group": {
+                    "_id": "$trainerID",
+                    "pokemon_count": {"$sum": 1},
+                    "pokemon_list": {
+                        "$push": {
+                            "name": "$pokename",
+                            "level": "$pokelevel",
+                            "type1": "$type1",
+                            "type2": "$type2"
+                        }
+                    }
+                }
+            },
+            # Join with trainers collection
+            {
+                "$lookup": {
+                    "from": "Trainers",
+                    "localField": "_id",
+                    "foreignField": "trainerID",
+                    "as": "trainer_info"
+                }
+            },
+            # Unwind and structure the output
+            {
+                "$unwind": "$trainer_info"
+            },
+            {
+                "$project": {
+                    "_id": 0,
+                    "trainer": {
+                        "trainerID": "$_id",
+                        "name": "$trainer_info.trainername",
+                        "total_strong_pokemon": "$pokemon_count"
+                    },
+                    "pokemon": "$pokemon_list"
+                }
+            },
+            # Sort by trainerID
+            {
+                "$sort": {"trainer.trainerID": 1}
+            }
+        ]
+
+        result = list(pokemon_col.aggregate(pipeline))
+        
+        if not result:
+            return jsonify({"message": f"No trainers found with Pokémon above level {min_level}"})
+            
+        return jsonify({"results": result})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # --- Frontend Serving ---
