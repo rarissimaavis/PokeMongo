@@ -21,7 +21,8 @@ def clean_id(data):
     if isinstance(data, list):
         return [clean_id(item) for item in data]
     if isinstance(data, dict):
-        data.pop('_id', None)
+        if '_id' in data:
+            data['_id'] = str(data['_id'])
         return {k: clean_id(v) for k, v in data.items()}
     return str(data) if isinstance(data, ObjectId) else data
 
@@ -30,18 +31,18 @@ def validate_trainer_exists(trainer_id):
     return trainers_col.find_one({"trainerID": trainer_id})
 
 # --- Trainer Endpoints ---
-@app.route('/trainers', methods=['GET'])
+@app.route('/api/trainers', methods=['GET'])
 def get_trainers():
     """Get all trainers"""
     return jsonify(clean_id(list(trainers_col.find())))
 
-@app.route('/trainers', methods=['POST'])
+@app.route('/api/trainers', methods=['POST'])
 def add_trainer():
     """Add new trainer"""
     result = trainers_col.insert_one(request.json)
     return jsonify({"_id": str(result.inserted_id)}), 201
 
-@app.route('/trainers/<string:trainer_id>', methods=['PUT'])
+@app.route('/api/trainers/<string:trainer_id>', methods=['PUT'])
 def update_trainer(trainer_id):
     """Update trainer by ID"""
     result = trainers_col.update_one(
@@ -50,7 +51,7 @@ def update_trainer(trainer_id):
     )
     return jsonify({"modified_count": result.modified_count})
 
-@app.route('/trainers/<string:trainer_id>', methods=['DELETE'])
+@app.route('/api/trainers/<string:trainer_id>', methods=['DELETE'])
 def delete_trainer(trainer_id):
     """Delete trainer and their pokemon"""
     result_trainer = trainers_col.delete_one({"_id": ObjectId(trainer_id)})
@@ -61,12 +62,12 @@ def delete_trainer(trainer_id):
     })
 
 # --- Pokemon Endpoints ---
-@app.route('/pokemon', methods=['GET'])
+@app.route('/api/pokemon', methods=['GET'])
 def get_pokemon():
     """Get all pokemon"""
     return jsonify(clean_id(list(pokemon_col.find())))
 
-@app.route('/pokemon', methods=['POST'])
+@app.route('/api/pokemon', methods=['POST'])
 def add_pokemon():
     """Add new pokemon with trainer validation"""
     data = request.json
@@ -75,7 +76,7 @@ def add_pokemon():
     result = pokemon_col.insert_one(data)
     return jsonify({"_id": str(result.inserted_id)}), 201
 
-@app.route('/pokemon/<string:pokemon_id>', methods=['PUT'])
+@app.route('/api/pokemon/<string:pokemon_id>', methods=['PUT'])
 def update_pokemon(pokemon_id):
     """Update pokemon by ID"""
     result = pokemon_col.update_one(
@@ -84,14 +85,14 @@ def update_pokemon(pokemon_id):
     )
     return jsonify({"modified_count": result.modified_count})
 
-@app.route('/pokemon/<string:pokemon_id>', methods=['DELETE'])
+@app.route('/api/pokemon/<string:pokemon_id>', methods=['DELETE'])
 def delete_pokemon(pokemon_id):
     """Delete pokemon by ID"""
     result = pokemon_col.delete_one({"_id": ObjectId(pokemon_id)})
     return jsonify({"deleted_count": result.deleted_count})
 
 # --- JOIN Operations ---
-@app.route('/trainers/<int:trainer_id>/pokemon', methods=['GET'])
+@app.route('/api/trainers/<int:trainer_id>/pokemon', methods=['GET'])
 def get_trainer_pokemon(trainer_id):
     """Get trainer with all their pokemon"""
     try:
@@ -126,7 +127,7 @@ def get_trainer_pokemon(trainer_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/trainers/with-pokemon-above/<int:min_level>', methods=['GET'])
+@app.route('/api/trainers/with-pokemon-above/<int:min_level>', methods=['GET'])
 def get_trainers_with_strong_pokemon(min_level):
     """Get trainers with Pokémon above specified level (optimized structure)"""
     try:
@@ -201,6 +202,8 @@ def serve_index():
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory('static', filename)
+
+# to-do
 
 if __name__ == '__main__':
     app.run(debug=True)
