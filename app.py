@@ -10,86 +10,173 @@ app = Flask(__name__)
 CORS(app)
 
 # --- Database Setup ---
-client = MongoClient('mongodb://localhost:27017/pokemon_db?directConnection=true')
-db = client['pokemon_db']
-trainers_col = db['Trainers']
-pokemon_col = db['Pokemon']
+try:
+    client = MongoClient('mongodb://localhost:27017/pokemon_db?directConnection=true')
+    db = client['pokemon_db']
+    trainers_col = db['Trainers']
+    pokemon_col = db['Pokemon']
+except Exception as e:
+    print(f"Database connection error: {str(e)}")
+    raise
 
 # --- Helper Functions ---
 def clean_id(data):
     """Recursively clean MongoDB ObjectId from data structures"""
-    if isinstance(data, list):
-        return [clean_id(item) for item in data]
-    if isinstance(data, dict):
-        if '_id' in data:
-            data['_id'] = str(data['_id'])
-        return {k: clean_id(v) for k, v in data.items()}
-    return str(data) if isinstance(data, ObjectId) else data
+    try:
+        if isinstance(data, list):
+            return [clean_id(item) for item in data]
+        if isinstance(data, dict):
+            if '_id' in data:
+                data['_id'] = str(data['_id'])
+            return {k: clean_id(v) for k, v in data.items()}
+        return str(data) if isinstance(data, ObjectId) else data
+    except Exception as e:
+        print(f"Error cleaning ID: {str(e)}")
+        return data
 
 def validate_trainer_exists(trainer_id):
     """Check if trainer exists before operations"""
-    return trainers_col.find_one({"trainerID": trainer_id})
+    try:
+        trainer = trainers_col.find_one({"trainerID": int(trainer_id)})
+        return trainer
+    except Exception as e:
+        print(f"Error validating trainer: {str(e)}")
+        return None
 
 # --- Trainer Endpoints ---
 @app.route('/api/trainers', methods=['GET'])
 def get_trainers():
     """Get all trainers"""
-    return jsonify(clean_id(list(trainers_col.find())))
+    try:
+        trainers = list(trainers_col.find())
+        return jsonify(clean_id(trainers)), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch trainers: {str(e)}"}), 500
 
 @app.route('/api/trainers', methods=['POST'])
 def add_trainer():
     """Add new trainer"""
-    result = trainers_col.insert_one(request.json)
-    return jsonify({"_id": str(result.inserted_id)}), 201
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
+        result = trainers_col.insert_one(data)
+        return jsonify({"_id": str(result.inserted_id)}), 201
+    except Exception as e:
+        return jsonify({"error": f"Failed to add trainer: {str(e)}"}), 500
 
 @app.route('/api/trainers/<string:trainer_id>', methods=['PUT'])
 def update_trainer(trainer_id):
     """Update trainer by ID"""
-    result = trainers_col.update_one(
-        {"_id": ObjectId(trainer_id)},
-        {"$set": request.json}
-    )
-    return jsonify({"modified_count": result.modified_count})
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "No update data provided"}), 400
+
+        result = trainers_col.update_one(
+            {"_id": ObjectId(trainer_id)},
+            {"$set": data}
+        )
+        
+        if result.matched_count == 0:
+            return jsonify({"error": "Trainer not found"}), 404
+            
+        return jsonify({
+            "modified_count": result.modified_count,
+            "message": "Trainer updated successfully"
+        }), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to update trainer: {str(e)}"}), 500
 
 @app.route('/api/trainers/<string:trainer_id>', methods=['DELETE'])
 def delete_trainer(trainer_id):
     """Delete trainer and their pokemon"""
-    result_trainer = trainers_col.delete_one({"_id": ObjectId(trainer_id)})
-    result_pokemon = pokemon_col.delete_many({"trainerID": trainer_id})
-    return jsonify({
-        "trainer_deleted": result_trainer.deleted_count,
-        "pokemon_deleted": result_pokemon.deleted_count
-    })
+    try:        
+        result_trainer = trainers_col.delete_one({"_id": ObjectId(trainer_id)})
+        result_pokemon = pokemon_col.delete_many({"trainerID": trainer_id})
+        
+        if result_trainer.deleted_count == 0:
+            return jsonify({"error": "Trainer not found"}), 404
+            
+        return jsonify({
+            "trainer_deleted": result_trainer.deleted_count,
+            "pokemon_deleted": result_pokemon.deleted_count,
+            "message": "Trainer and associated pokemon deleted"
+        }), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to delete trainer: {str(e)}"}), 500
 
 # --- Pokemon Endpoints ---
 @app.route('/api/pokemon', methods=['GET'])
 def get_pokemon():
     """Get all pokemon"""
-    return jsonify(clean_id(list(pokemon_col.find())))
+    try:
+        pokemons = list(pokemon_col.find())
+        return jsonify(clean_id(pokemons)), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch pokemon: {str(e)}"}), 500
 
 @app.route('/api/pokemon', methods=['POST'])
 def add_pokemon():
     """Add new pokemon with trainer validation"""
-    data = request.json
-    if not validate_trainer_exists(data['trainerID']):
-        return jsonify({"error": "Trainer not found"}), 404
-    result = pokemon_col.insert_one(data)
-    return jsonify({"_id": str(result.inserted_id)}), 201
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
+        if 'trainerID' not in data:
+            return jsonify({"error": "trainerID is required"}), 400
+            
+        if not validate_trainer_exists(data['trainerID']):
+            return jsonify({"error": "Trainer not found"}), 404
+            
+        result = pokemon_col.insert_one(data)
+        return jsonify({
+            "_id": str(result.inserted_id),
+            "message": "Pokemon added successfully"
+        }), 201
+    except Exception as e:
+        return jsonify({"error": f"Failed to add pokemon: {str(e)}"}), 500
 
 @app.route('/api/pokemon/<string:pokemon_id>', methods=['PUT'])
 def update_pokemon(pokemon_id):
     """Update pokemon by ID"""
-    result = pokemon_col.update_one(
-        {"_id": ObjectId(pokemon_id)},
-        {"$set": request.json}
-    )
-    return jsonify({"modified_count": result.modified_count})
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "No update data provided"}), 400
+
+        result = pokemon_col.update_one(
+            {"_id": ObjectId(pokemon_id)},
+            {"$set": data}
+        )
+        
+        if result.matched_count == 0:
+            return jsonify({"error": "Pokemon not found"}), 404
+            
+        return jsonify({
+            "modified_count": result.modified_count,
+            "message": "Pokemon updated successfully"
+        }), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to update pokemon: {str(e)}"}), 500
 
 @app.route('/api/pokemon/<string:pokemon_id>', methods=['DELETE'])
 def delete_pokemon(pokemon_id):
     """Delete pokemon by ID"""
-    result = pokemon_col.delete_one({"_id": ObjectId(pokemon_id)})
-    return jsonify({"deleted_count": result.deleted_count})
+    try:
+        result = pokemon_col.delete_one({"_id": ObjectId(pokemon_id)})
+        
+        if result.deleted_count == 0:
+            return jsonify({"error": "Pokemon not found"}), 404
+            
+        return jsonify({
+            "deleted_count": result.deleted_count,
+            "message": "Pokemon deleted successfully"
+        }), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to delete pokemon: {str(e)}"}), 500
 
 # --- JOIN Operations ---
 @app.route('/api/trainers/<int:trainer_id>/pokemon', methods=['GET'])
@@ -122,77 +209,57 @@ def get_trainer_pokemon(trainer_id):
                 "trainername": result[0]["trainername"]
             },
             "pokemon": clean_id(result[0]["pokemon"])
-        })
+        }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Failed to fetch trainer pokemon: {str(e)}"}), 500
 
 @app.route('/api/trainers/with-pokemon-above/<int:min_level>', methods=['GET'])
 def get_trainers_with_strong_pokemon(min_level):
-    """Get trainers with Pokémon above specified level (optimized structure)"""
+    """Get trainers with Pokémon above specified level"""
     try:
         pipeline = [
-            # Filter Pokémon collection for efficiency
-            {
-                "$match": {
-                    "pokelevel": {"$gt": min_level}
-                }
-            },
-            # Group by trainer and collect Pokemon details
-            {
-                "$group": {
-                    "_id": "$trainerID",
-                    "pokemon_count": {"$sum": 1},
-                    "pokemon_list": {
-                        "$push": {
-                            "name": "$pokename",
-                            "level": "$pokelevel",
-                            "type1": "$type1",
-                            "type2": "$type2"
-                        }
+            {"$match": {"pokelevel": {"$gt": min_level}}},
+            {"$group": {
+                "_id": "$trainerID",
+                "pokemon_count": {"$sum": 1},
+                "pokemon_list": {
+                    "$push": {
+                        "name": "$pokename",
+                        "level": "$pokelevel",
+                        "type1": "$type1",
+                        "type2": "$type2"
                     }
                 }
-            },
-            # Join with trainers collection
-            {
-                "$lookup": {
-                    "from": "Trainers",
-                    "localField": "_id",
-                    "foreignField": "trainerID",
-                    "as": "trainer_info"
-                }
-            },
-            # Unwind and structure the output
-            {
-                "$unwind": "$trainer_info"
-            },
-            {
-                "$project": {
-                    "_id": 0,
-                    "trainer": {
-                        "trainerID": "$_id",
-                        "name": "$trainer_info.trainername",
-                        "total_strong_pokemon": "$pokemon_count"
-                    },
-                    "pokemon": "$pokemon_list"
-                }
-            },
-            # Sort by trainerID
-            {
-                "$sort": {"trainer.trainerID": 1}
-            }
+            }},
+            {"$lookup": {
+                "from": "Trainers",
+                "localField": "_id",
+                "foreignField": "trainerID",
+                "as": "trainer_info"
+            }},
+            {"$unwind": "$trainer_info"},
+            {"$project": {
+                "_id": 0,
+                "trainer": {
+                    "trainerID": "$_id",
+                    "name": "$trainer_info.trainername",
+                    "total_strong_pokemon": "$pokemon_count"
+                },
+                "pokemon": "$pokemon_list"
+            }},
+            {"$sort": {"trainer.trainerID": 1}}
         ]
 
         result = list(pokemon_col.aggregate(pipeline))
         
         if not result:
-            return jsonify({"message": f"No trainers found with Pokémon above level {min_level}"})
+            return jsonify({"message": f"No trainers found with Pokémon above level {min_level}"}), 200
             
-        return jsonify({"results": result})
+        return jsonify({"results": result}), 200
         
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+        return jsonify({"error": f"Failed to fetch strong pokemon trainers: {str(e)}"}), 500
 
 # --- Frontend Serving ---
 @app.route('/')
