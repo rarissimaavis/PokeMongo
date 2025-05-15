@@ -1,8 +1,11 @@
 from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
-from pymongo import MongoClient
+from pymongo import MongoClient, WriteConcern
+from pymongo.read_concern import ReadConcern
+from pymongo.errors import ConnectionFailure, OperationFailure, WriteError
 from bson.objectid import ObjectId
 from bson.json_util import dumps
+from tenacity import retry, stop_after_attempt, wait_exponential
 import json
 
 # --- App Configuration ---
@@ -11,15 +14,37 @@ CORS(app)
 
 # --- Database Setup ---
 try:
-    client = MongoClient('mongodb://localhost:27017/pokemon_db?directConnection=true')
+    # Consistency implementation
+    client = MongoClient(
+        'mongodb://localhost:27017/pokemon_db?directConnection=true&w=majority&r=majority&retryWrites=true&retryReads=true',
+        maxPoolSize=50,
+        minPoolSize=10,
+        maxIdleTimeMS=30000,
+        waitQueueTimeoutMS=2500
+    )
     db = client['pokemon_db']
-    trainers_col = db['Trainers']
-    pokemon_col = db['Pokemon']
+    trainers_col = db['Trainers'].with_options(
+        write_concern=WriteConcern(w='majority', wtimeout=5000),
+        read_concern=ReadConcern(level='majority')
+    )
+    pokemon_col = db['Pokemon'].with_options(
+        write_concern=WriteConcern(w='majority', wtimeout=5000),
+        read_concern=ReadConcern(level='majority')
+    )
 except Exception as e:
     print(f"Database connection error: {str(e)}")
     raise
 
 # --- Helper Functions ---
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+def execute_with_retry(operation):
+    """Execute database operations with retry logic"""
+    try:
+        return operation()
+    except (ConnectionFailure, OperationFailure) as e:
+        print(f"Operation failed: {str(e)}")
+        raise
+
 def clean_id(data):
     """Recursively clean MongoDB ObjectId from data structures"""
     try:
@@ -34,10 +59,10 @@ def clean_id(data):
         print(f"Error cleaning ID: {str(e)}")
         return data
 
-def validate_trainer_exists(trainer_id):
+def validate_trainer_exists(trainer_id, session=None):
     """Check if trainer exists before operations"""
     try:
-        trainer = trainers_col.find_one({"trainerID": int(trainer_id)})
+        trainer = trainers_col.find_one({"trainerID": int(trainer_id)}, session=session)
         return trainer
     except Exception as e:
         print(f"Error validating trainer: {str(e)}")
@@ -48,7 +73,7 @@ def validate_trainer_exists(trainer_id):
 def get_trainers():
     """Get all trainers"""
     try:
-        trainers = list(trainers_col.find())
+        trainers = execute_with_retry(lambda: list(trainers_col.find()))
         return jsonify(clean_id(trainers)), 200
     except Exception as e:
         return jsonify({"error": f"Failed to fetch trainers: {str(e)}"}), 500
@@ -61,8 +86,12 @@ def add_trainer():
         if not data:
             return jsonify({"error": "No data provided"}), 400
             
-        result = trainers_col.insert_one(data)
-        return jsonify({"_id": str(result.inserted_id)}), 201
+        with client.start_session() as session:
+            with session.start_transaction():
+                result = trainers_col.insert_one(data, session=session)
+                return jsonify({"_id": str(result.inserted_id)}), 201
+    except WriteError as e:
+        return jsonify({"error": f"Write operation failed: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": f"Failed to add trainer: {str(e)}"}), 500
 
@@ -128,14 +157,18 @@ def add_pokemon():
         if 'trainerID' not in data:
             return jsonify({"error": "trainerID is required"}), 400
             
-        if not validate_trainer_exists(data['trainerID']):
-            return jsonify({"error": "Trainer not found"}), 404
-            
-        result = pokemon_col.insert_one(data)
-        return jsonify({
-            "_id": str(result.inserted_id),
-            "message": "Pokemon added successfully"
-        }), 201
+        with client.start_session() as session:
+            with session.start_transaction():
+                if not validate_trainer_exists(data['trainerID'], session):
+                    return jsonify({"error": "Trainer not found"}), 404
+                
+                result = pokemon_col.insert_one(data, session=session)
+                return jsonify({
+                    "_id": str(result.inserted_id),
+                    "message": "Pokemon added successfully"
+                }), 201
+    except WriteError as e:
+        return jsonify({"error": f"Write operation failed: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": f"Failed to add pokemon: {str(e)}"}), 500
 
@@ -147,18 +180,23 @@ def update_pokemon(pokemon_id):
         if not data:
             return jsonify({"error": "No update data provided"}), 400
 
-        result = pokemon_col.update_one(
-            {"_id": ObjectId(pokemon_id)},
-            {"$set": data}
-        )
-        
-        if result.matched_count == 0:
-            return jsonify({"error": "Pokemon not found"}), 404
-            
-        return jsonify({
-            "modified_count": result.modified_count,
-            "message": "Pokemon updated successfully"
-        }), 200
+        with client.start_session() as session:
+            with session.start_transaction():
+                result = pokemon_col.update_one(
+                    {"_id": ObjectId(pokemon_id)},
+                    {"$set": data},
+                    session=session
+                )
+                
+                if result.matched_count == 0:
+                    return jsonify({"error": "Pokemon not found"}), 404
+                    
+                return jsonify({
+                    "modified_count": result.modified_count,
+                    "message": "Pokemon updated successfully"
+                }), 200
+    except WriteError as e:
+        return jsonify({"error": f"Write operation failed: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": f"Failed to update pokemon: {str(e)}"}), 500
 
@@ -166,15 +204,22 @@ def update_pokemon(pokemon_id):
 def delete_pokemon(pokemon_id):
     """Delete pokemon by ID"""
     try:
-        result = pokemon_col.delete_one({"_id": ObjectId(pokemon_id)})
-        
-        if result.deleted_count == 0:
-            return jsonify({"error": "Pokemon not found"}), 404
-            
-        return jsonify({
-            "deleted_count": result.deleted_count,
-            "message": "Pokemon deleted successfully"
-        }), 200
+        with client.start_session() as session:
+            with session.start_transaction():
+                result = pokemon_col.delete_one(
+                    {"_id": ObjectId(pokemon_id)},
+                    session=session
+                )
+                
+                if result.deleted_count == 0:
+                    return jsonify({"error": "Pokemon not found"}), 404
+                    
+                return jsonify({
+                    "deleted_count": result.deleted_count,
+                    "message": "Pokemon deleted successfully"
+                }), 200
+    except WriteError as e:
+        return jsonify({"error": f"Write operation failed: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": f"Failed to delete pokemon: {str(e)}"}), 500
 
