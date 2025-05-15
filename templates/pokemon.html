@@ -16,13 +16,21 @@
         
         <div class="section">
             <h2>Add Pokémon</h2>
-            <form id="addPokemonForm" class="form">
-                <input type="text" id="pokemonID" placeholder="Pokémon ID" required>
+            <form id="addPokemonForm" class="form" onsubmit="event.preventDefault(); addPokemon();">
                 <input type="text" id="pokemonName" placeholder="Name" required>
-                <input type="text" id="pokemonType" placeholder="Type" required>
-                <input type="number" id="pokemonLevel" placeholder="Level" required>
-                <input type="text" id="pokemonTrainerID" placeholder="Trainer ID" required>
-                <button type="button" onclick="addPokemon()">Add Pokémon</button>
+                <input type="text" id="pokemonType1" placeholder="Primary Type" required>
+                <input type="text" id="pokemonType2" placeholder="Secondary Type (optional)">
+                <input type="number" id="pokemonPokelevel" placeholder="Pokélevel" required>
+                <input type="number" id="pokemonAttack" placeholder="Attack" required>
+                <input type="number" id="pokemonDefense" placeholder="Defense" required>
+                <input type="number" id="pokemonHP" placeholder="HP" required>
+                <input type="number" id="pokemonMaxHP" placeholder="Max HP" required>
+                <input type="number" id="pokemonSpatk" placeholder="Sp. Atk" required>
+                <input type="number" id="pokemonSpdef" placeholder="Sp. Def" required>
+                <input type="number" id="pokemonSpeed" placeholder="Speed" required>
+                <input type="number" id="pokemonPlace" placeholder="Place" required>
+                <input type="number" id="pokemonTrainerID" placeholder="Trainer ID" required>
+                <button type="submit">Add Pokémon</button>
             </form>
         </div>
         

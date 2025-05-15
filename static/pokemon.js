@@ -25,15 +25,35 @@ function displayResult(elementId, result) {
 
 // Pokémon CRUD functions
 async function addPokemon() {
-    const pokemon = {
-        pokemonID: document.getElementById('pokemonID').value,
-        name: document.getElementById('pokemonName').value,
-        type: document.getElementById('pokemonType').value,
-        level: parseInt(document.getElementById('pokemonLevel').value),
-        trainerID: document.getElementById('pokemonTrainerID').value
-    };
-    const { success, data } = await callApi('/api/pokemon', 'POST', pokemon);
-    displayResult('pokemonList', success ? data : 'Error adding Pokémon');
+    try {
+        const pokemon = {
+            pokename: document.getElementById('pokemonName').value,
+            type1: document.getElementById('pokemonType1').value,
+            type2: document.getElementById('pokemonType2').value || null,
+            pokelevel: parseInt(document.getElementById('pokemonPokelevel').value),
+            attack: parseInt(document.getElementById('pokemonAttack').value),
+            defense: parseInt(document.getElementById('pokemonDefense').value),
+            hp: parseInt(document.getElementById('pokemonHP').value),
+            maxhp: parseInt(document.getElementById('pokemonMaxHP').value),
+            spatk: parseInt(document.getElementById('pokemonSpatk').value),
+            spdef: parseInt(document.getElementById('pokemonSpdef').value),
+            speed: parseInt(document.getElementById('pokemonSpeed').value),
+            place: parseInt(document.getElementById('pokemonPlace').value),
+            trainerID: parseInt(document.getElementById('pokemonTrainerID').value)
+        };
+
+        const { success, data } = await callApi('/api/pokemon', 'POST', pokemon);
+        
+        if (success) {
+            displayResult('pokemonList', data);
+            document.getElementById('addPokemonForm').reset();
+            getAllPokemon();
+        } else {
+            displayResult('pokemonList', { error: 'Failed to add Pokémon', details: data });
+        }
+    } catch (error) {
+        displayResult('pokemonList', { error: 'Error adding Pokémon', details: error.message });
+    }
 }
 
 async function getAllPokemon() {
