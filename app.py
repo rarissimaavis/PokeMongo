@@ -17,7 +17,7 @@ CORS(app)
 def get_mongo_client():
     """Create MongoDB client with proper configuration for partition tolerance"""
     try:
-        # Replica set connection string - replace with your actual replica set members
+        # Replica set connection string
         connection_string = 'mongodb://localhost:27017,localhost:27018,localhost:27019/pokemon_db?replicaSet=rs0&w=majority&wtimeoutMS=5000'
         
         client = MongoClient(
@@ -35,7 +35,6 @@ def get_mongo_client():
             readPreference='secondaryPreferred'
         )
         
-        # Test connection
         client.admin.command('ping')
         return client
     except Exception as e:
@@ -53,7 +52,6 @@ def initialize_db():
     client = get_mongo_client()
     db = client['pokemon_db']
     
-    # Create collections if they don't exist
     if 'Trainers' not in db.list_collection_names():
         db.create_collection('Trainers')
     if 'Pokemon' not in db.list_collection_names():
@@ -69,7 +67,6 @@ def initialize_db():
         read_concern=ReadConcern(level='majority')
     )
     
-    # Create indexes for better performance
     trainers_col.create_index('trainerID', unique=True)
     pokemon_col.create_index('trainerID')
     
@@ -361,7 +358,6 @@ def get_trainers_with_strong_pokemon(min_level):
 def check_db_health():
     """Check database connection health"""
     try:
-        # Try to ping the database
         client.admin.command('ping')
         return jsonify({"status": "healthy", "message": "Database connection is active"}), 200
     except Exception as e:
