@@ -10,3 +10,16 @@ myenv/
 # Data
 *.csv
 *.json
+
+# MongoDB data files
+data/
+*.wt
+WiredTiger*
+mongod.lock
+sizeStorer.wt
+storage.bson
+
+# Logs and diagnostics
+logs/
+diagnostic.data/
+metrics.*
