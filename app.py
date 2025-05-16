@@ -2,27 +2,64 @@ from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 from pymongo import MongoClient, WriteConcern
 from pymongo.read_concern import ReadConcern
-from pymongo.errors import ConnectionFailure, OperationFailure, WriteError
+from pymongo.errors import ConnectionFailure, OperationFailure, WriteError, ServerSelectionTimeoutError
 from bson.objectid import ObjectId
 from bson.json_util import dumps
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 import json
+import time
 
 # --- App Configuration ---
 app = Flask(__name__)
 CORS(app)
 
 # --- Database Setup ---
-try:
-    # Consistency implementation
-    client = MongoClient(
-        'mongodb://localhost:27017/pokemon_db?directConnection=true&w=majority&r=majority&retryWrites=true&retryReads=true',
-        maxPoolSize=50,
-        minPoolSize=10,
-        maxIdleTimeMS=30000,
-        waitQueueTimeoutMS=2500
-    )
+def get_mongo_client():
+    """Create MongoDB client with proper configuration for partition tolerance"""
+    try:
+        # Replica set connection string - replace with your actual replica set members
+        connection_string = 'mongodb://localhost:27017,localhost:27018,localhost:27019/pokemon_db?replicaSet=rs0&w=majority&wtimeoutMS=5000'
+        
+        client = MongoClient(
+            connection_string,
+            maxPoolSize=50,
+            minPoolSize=10,
+            maxIdleTimeMS=30000,
+            waitQueueTimeoutMS=2500,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=2000,
+            socketTimeoutMS=2000,
+            retryWrites=True,
+            retryReads=True,
+            w='majority',
+            readPreference='secondaryPreferred'
+        )
+        
+        # Test connection
+        client.admin.command('ping')
+        return client
+    except Exception as e:
+        print(f"Database connection error: {str(e)}")
+        raise
+
+# Initialize client with retry logic
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    retry=retry_if_exception_type((ConnectionFailure, ServerSelectionTimeoutError))
+)
+def initialize_db():
+    """Initialize database connection with retry logic"""
+    client = get_mongo_client()
     db = client['pokemon_db']
+    
+    # Create collections if they don't exist
+    if 'Trainers' not in db.list_collection_names():
+        db.create_collection('Trainers')
+    if 'Pokemon' not in db.list_collection_names():
+        db.create_collection('Pokemon')
+    
+    # Configure collections with proper write and read concerns
     trainers_col = db['Trainers'].with_options(
         write_concern=WriteConcern(w='majority', wtimeout=5000),
         read_concern=ReadConcern(level='majority')
@@ -31,17 +68,30 @@ try:
         write_concern=WriteConcern(w='majority', wtimeout=5000),
         read_concern=ReadConcern(level='majority')
     )
+    
+    # Create indexes for better performance
+    trainers_col.create_index('trainerID', unique=True)
+    pokemon_col.create_index('trainerID')
+    
+    return client, db, trainers_col, pokemon_col
+
+try:
+    client, db, trainers_col, pokemon_col = initialize_db()
 except Exception as e:
-    print(f"Database connection error: {str(e)}")
+    print(f"Failed to initialize database after retries: {str(e)}")
     raise
 
 # --- Helper Functions ---
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    retry=retry_if_exception_type((ConnectionFailure, OperationFailure, ServerSelectionTimeoutError))
+)
 def execute_with_retry(operation):
     """Execute database operations with retry logic"""
     try:
         return operation()
-    except (ConnectionFailure, OperationFailure) as e:
+    except (ConnectionFailure, OperationFailure, ServerSelectionTimeoutError) as e:
         print(f"Operation failed: {str(e)}")
         raise
 
@@ -305,6 +355,17 @@ def get_trainers_with_strong_pokemon(min_level):
         
     except Exception as e:
         return jsonify({"error": f"Failed to fetch strong pokemon trainers: {str(e)}"}), 500
+
+# --- Database Health Check Endpoint ---
+@app.route('/api/health', methods=['GET'])
+def check_db_health():
+    """Check database connection health"""
+    try:
+        # Try to ping the database
+        client.admin.command('ping')
+        return jsonify({"status": "healthy", "message": "Database connection is active"}), 200
+    except Exception as e:
+        return jsonify({"status": "unhealthy", "error": str(e)}), 503
 
 # --- Frontend Serving ---
 @app.route('/')
