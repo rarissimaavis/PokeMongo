@@ -125,6 +125,17 @@ def get_trainers():
     except Exception as e:
         return jsonify({"error": f"Failed to fetch trainers: {str(e)}"}), 500
 
+@app.route('/api/trainers/<string:trainer_id>', methods=['GET'])
+def get_single_trainer(trainer_id):
+    """Get a single trainer by ID"""
+    try:
+        trainer = trainers_col.find_one({"_id": ObjectId(trainer_id)})
+        if not trainer:
+            return jsonify({"error": "Trainer not found"}), 404
+        return jsonify(clean_id(trainer)), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch trainer: {str(e)}"}), 500
+
 @app.route('/api/trainers', methods=['POST'])
 def add_trainer():
     """Add new trainer"""
