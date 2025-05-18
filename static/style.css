@@ -495,3 +495,29 @@ button:hover {
 .modal-content .form {
     max-width: 100%;
 }
+
+.pokemon-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.update-btn {
+    background-color: #f39c12;
+    padding: 5px 10px;
+    font-size: 0.8rem;
+}
+
+.update-btn:hover {
+    background-color: #e67e22;
+}
+
+.delete-btn {
+    background-color: #e74c3c;
+    padding: 5px 10px;
+    font-size: 0.8rem;
+}
+
+.delete-btn:hover {
+    background-color: #c0392b;
+}

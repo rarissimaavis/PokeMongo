@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:5000';
+const API_BASE = 'http://localhost:5000/api';
 
 // Helper function for API calls
 async function callApi(endpoint, method = 'GET', data = null) {
@@ -10,25 +10,28 @@ async function callApi(endpoint, method = 'GET', data = null) {
     
     try {
         const response = await fetch(`${API_BASE}${endpoint}`, options);
-        const result = await response.json();
-        return { success: response.ok, data: result };
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Request failed');
+        }
+        return await response.json();
     } catch (error) {
-        return { success: false, error: error.message };
+        console.error('API call failed:', error);
+        throw error;
     }
 }
 
 // Display Pokémon as cards
-function displayPokemon(pokemonList) {
+async function displayPokemon(pokemonList) {
     const container = document.getElementById('pokemonList');
-    
+    container.innerHTML = '';
+
     if (!pokemonList || pokemonList.length === 0) {
         container.innerHTML = '<div class="error-message">No Pokémon found</div>';
         return;
     }
 
-    container.innerHTML = '';
-    
-    pokemonList.forEach(pokemon => {
+    for (const pokemon of pokemonList) {
         const card = document.createElement('div');
         card.className = 'pokemon-card';
         
@@ -75,14 +78,18 @@ function displayPokemon(pokemonList) {
             </div>
             <div class="pokemon-footer">
                 <span class="trainer-info">Trainer ID: ${pokemon.trainerID || 'Wild'}</span>
+                <div class="pokemon-actions">
+                    <button class="update-btn" onclick="openUpdateModal('${pokemon._id}')">Update</button>
+                    <button class="delete-btn" onclick="confirmDelete('${pokemon._id}')">Delete</button>
+                </div>
             </div>
         `;
         
         container.appendChild(card);
-    });
+    }
 }
 
-// Pokémon CRUD functions
+// Modal functions
 function openCreateModal() {
     document.getElementById('createModal').style.display = 'block';
 }
@@ -91,13 +98,36 @@ function closeCreateModal() {
     document.getElementById('createModal').style.display = 'none';
 }
 
-window.onclick = function(event) {
-    const modal = document.getElementById('createModal');
-    if (event.target == modal) {
-        closeCreateModal();
+async function openUpdateModal(pokemonId) {
+    try {
+        const pokemon = await callApi(`/pokemon/${pokemonId}`);
+        
+        document.getElementById('updatePokemonId').value = pokemon._id;
+        document.getElementById('updatePokemonName').value = pokemon.pokename;
+        document.getElementById('updatePokemonType1').value = pokemon.type1;
+        document.getElementById('updatePokemonType2').value = pokemon.type2 || '';
+        document.getElementById('updatePokemonPokelevel').value = pokemon.pokelevel;
+        document.getElementById('updatePokemonAttack').value = pokemon.attack;
+        document.getElementById('updatePokemonDefense').value = pokemon.defense;
+        document.getElementById('updatePokemonHP').value = pokemon.hp;
+        document.getElementById('updatePokemonMaxHP').value = pokemon.maxhp;
+        document.getElementById('updatePokemonSpatk').value = pokemon.spatk;
+        document.getElementById('updatePokemonSpdef').value = pokemon.spdef;
+        document.getElementById('updatePokemonSpeed').value = pokemon.speed;
+        document.getElementById('updatePokemonPlace').value = pokemon.place;
+        document.getElementById('updatePokemonTrainerID').value = pokemon.trainerID || '';
+        
+        document.getElementById('updateModal').style.display = 'block';
+    } catch (error) {
+        alert(`Failed to load Pokémon: ${error.message}`);
     }
 }
 
+function closeUpdateModal() {
+    document.getElementById('updateModal').style.display = 'none';
+}
+
+// Pokémon CRUD functions
 async function addPokemon() {
     try {
         const pokemon = {
@@ -113,59 +143,63 @@ async function addPokemon() {
             spdef: parseInt(document.getElementById('pokemonSpdef').value),
             speed: parseInt(document.getElementById('pokemonSpeed').value),
             place: parseInt(document.getElementById('pokemonPlace').value),
-            trainerID: parseInt(document.getElementById('pokemonTrainerID').value)
+            trainerID: parseInt(document.getElementById('pokemonTrainerID').value) || null
         };
 
-        const { success, data } = await callApi('/api/pokemon', 'POST', pokemon);
-        
-        if (success) {
-            document.getElementById('addPokemonForm').reset();
-            closeCreateModal();
-            await getAllPokemon();
-        } else {
-            document.getElementById('pokemonList').innerHTML = `
-                <div class="error-message">Error adding Pokémon: ${data.message || 'Unknown error'}</div>
-            `;
-        }
+        await callApi('/pokemon', 'POST', pokemon);
+        document.getElementById('addPokemonForm').reset();
+        closeCreateModal();
+        await getAllPokemon();
     } catch (error) {
-        document.getElementById('pokemonList').innerHTML = `
-            <div class="error-message">Error adding Pokémon: ${error.message}</div>
-        `;
-    }
-}
-
-async function getAllPokemon() {
-    const { success, data } = await callApi('/api/pokemon');
-    if (success) {
-        displayPokemon(data);
-    } else {
-        document.getElementById('pokemonList').innerHTML = `
-            <div class="error-message">Error fetching Pokémon: ${data.message || 'Unknown error'}</div>
-        `;
+        alert(`Failed to add Pokémon: ${error.message}`);
     }
 }
 
 async function updatePokemon() {
-    const pokemonId = document.getElementById('updatePokemonId').value;
-    const newLevel = document.getElementById('newPokemonLevel').value;
-    const { success, data } = await callApi(`/api/pokemon/${pokemonId}`, 'PUT', { level: newLevel });
-    if (success) {
+    try {
+        const pokemonId = document.getElementById('updatePokemonId').value;
+        const pokemon = {
+            pokename: document.getElementById('updatePokemonName').value,
+            type1: document.getElementById('updatePokemonType1').value,
+            type2: document.getElementById('updatePokemonType2').value || null,
+            pokelevel: parseInt(document.getElementById('updatePokemonPokelevel').value),
+            attack: parseInt(document.getElementById('updatePokemonAttack').value),
+            defense: parseInt(document.getElementById('updatePokemonDefense').value),
+            hp: parseInt(document.getElementById('updatePokemonHP').value),
+            maxhp: parseInt(document.getElementById('updatePokemonMaxHP').value),
+            spatk: parseInt(document.getElementById('updatePokemonSpatk').value),
+            spdef: parseInt(document.getElementById('updatePokemonSpdef').value),
+            speed: parseInt(document.getElementById('updatePokemonSpeed').value),
+            place: parseInt(document.getElementById('updatePokemonPlace').value),
+            trainerID: parseInt(document.getElementById('updatePokemonTrainerID').value) || null
+        };
+
+        await callApi(`/pokemon/${pokemonId}`, 'PUT', pokemon);
+        closeUpdateModal();
         await getAllPokemon();
-    } else {
-        document.getElementById('pokemonList').innerHTML = `
-            <div class="error-message">Error updating Pokémon: ${data.message || 'Unknown error'}</div>
-        `;
+    } catch (error) {
+        alert(`Failed to update Pokémon: ${error.message}`);
     }
 }
 
-async function deletePokemon() {
-    const pokemonId = document.getElementById('deletePokemonId').value;
-    const { success, data } = await callApi(`/api/pokemon/${pokemonId}`, 'DELETE');
-    if (success) {
-        await getAllPokemon();
-    } else {
+async function confirmDelete(pokemonId) {
+    if (confirm('Are you sure you want to delete this Pokémon?')) {
+        try {
+            await callApi(`/pokemon/${pokemonId}`, 'DELETE');
+            await getAllPokemon();
+        } catch (error) {
+            alert(`Failed to delete Pokémon: ${error.message}`);
+        }
+    }
+}
+
+async function getAllPokemon() {
+    try {
+        const pokemonList = await callApi('/pokemon');
+        await displayPokemon(pokemonList);
+    } catch (error) {
         document.getElementById('pokemonList').innerHTML = `
-            <div class="error-message">Error deleting Pokémon: ${data.message || 'Unknown error'}</div>
+            <div class="error-message">Error fetching Pokémon: ${error.message}</div>
         `;
     }
 }
