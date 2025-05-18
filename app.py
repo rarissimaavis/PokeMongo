@@ -192,6 +192,17 @@ def get_pokemon():
         return jsonify(clean_id(pokemons)), 200
     except Exception as e:
         return jsonify({"error": f"Failed to fetch pokemon: {str(e)}"}), 500
+    
+@app.route('/api/pokemon/<string:pokemon_id>', methods=['GET'])
+def get_single_pokemon(pokemon_id):
+    """Get a single pokemon by ID"""
+    try:
+        pokemon = pokemon_col.find_one({"_id": ObjectId(pokemon_id)})
+        if not pokemon:
+            return jsonify({"error": "Pokemon not found"}), 404
+        return jsonify(clean_id(pokemon)), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch pokemon: {str(e)}"}), 500
 
 @app.route('/api/pokemon', methods=['POST'])
 def add_pokemon():
