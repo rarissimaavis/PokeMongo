@@ -1,6 +1,6 @@
 const API_BASE = 'http://localhost:5000';
 
-// Helper function
+// Helper function for API calls
 async function callApi(endpoint, method = 'GET', data = null) {
     const options = {
         method,
@@ -40,14 +40,13 @@ function displayTrainersAsCards(trainers) {
     });
 }
 
-// Load trainers
+// Trainers CRUD functions
 async function getAllTrainers() {
     const { success, data } = await callApi('/api/trainers');
     if (success) displayTrainersAsCards(data);
     else alert('Error fetching trainers');
 }
 
-// Create
 async function createTrainer() {
     const trainer = {
         trainerID: document.getElementById('trainerID').value,
@@ -58,7 +57,6 @@ async function createTrainer() {
     else alert('Error creating trainer');
 }
 
-// Update
 async function updateTrainer() {
     const trainerId = document.getElementById('updateTrainerId').value;
     const newName = document.getElementById('newTrainerName').value;
@@ -67,7 +65,6 @@ async function updateTrainer() {
     else alert('Error updating trainer');
 }
 
-// Delete
 async function deleteTrainer() {
     const trainerId = document.getElementById('deleteTrainerId').value;
     const { success } = await callApi(`/api/trainers/${trainerId}`, 'DELETE');
