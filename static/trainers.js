@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:5000';
+const API_BASE = 'http://localhost:5000/api';
 
 // Helper function for API calls
 async function callApi(endpoint, method = 'GET', data = null) {
@@ -7,18 +7,22 @@ async function callApi(endpoint, method = 'GET', data = null) {
         headers: { 'Content-Type': 'application/json' }
     };
     if (data) options.body = JSON.stringify(data);
-
+    
     try {
         const response = await fetch(`${API_BASE}${endpoint}`, options);
-        const result = await response.json();
-        return { success: response.ok, data: result };
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Request failed');
+        }
+        return await response.json();
     } catch (error) {
-        return { success: false, error: error.message };
+        console.error('API call failed:', error);
+        throw error;
     }
 }
 
-// Display trainers
-function displayTrainersAsCards(trainers) {
+// Display trainers as cards
+async function displayTrainersAsCards(trainers) {
     const list = document.getElementById('trainersList');
     list.innerHTML = '';
 
@@ -34,42 +38,103 @@ function displayTrainersAsCards(trainers) {
         card.innerHTML = `
             <div class="trainer-id">ID: ${trainer.trainerID}</div>
             <div class="trainer-name">${trainer.trainername}</div>
+            <div class="trainer-actions">
+                <button class="update-btn" onclick="openUpdateTrainerModal('${trainer._id}')">Update</button>
+                <button class="delete-btn" onclick="confirmDeleteTrainer('${trainer._id}')">Delete</button>
+            </div>
         `;
 
         list.appendChild(card);
     });
 }
 
+// Modal functions for trainers
+function openCreateTrainerModal() {
+    document.getElementById('createTrainerModal').style.display = 'block';
+}
+
+function closeCreateTrainerModal() {
+    document.getElementById('createTrainerModal').style.display = 'none';
+}
+
+async function openUpdateTrainerModal(trainerId) {
+    try {
+        const trainer = await callApi(`/trainers/${trainerId}`);
+        
+        document.getElementById('updateTrainerId').value = trainer._id;
+        document.getElementById('updateTrainerID').value = trainer.trainerID;
+        document.getElementById('updateTrainerName').value = trainer.trainername;
+        
+        document.getElementById('updateTrainerModal').style.display = 'block';
+    } catch (error) {
+        alert(`Failed to load trainer: ${error.message}`);
+    }
+}
+
+function closeUpdateTrainerModal() {
+    document.getElementById('updateTrainerModal').style.display = 'none';
+}
+
 // Trainers CRUD functions
 async function getAllTrainers() {
-    const { success, data } = await callApi('/api/trainers');
-    if (success) displayTrainersAsCards(data);
-    else alert('Error fetching trainers');
+    try {
+        const trainers = await callApi('/trainers');
+        await displayTrainersAsCards(trainers);
+    } catch (error) {
+        alert(`Error fetching trainers: ${error.message}`);
+    }
 }
 
 async function createTrainer() {
-    const trainer = {
-        trainerID: document.getElementById('trainerID').value,
-        trainername: document.getElementById('trainerName').value
-    };
-    const { success } = await callApi('/api/trainers', 'POST', trainer);
-    if (success) getAllTrainers();
-    else alert('Error creating trainer');
+    try {
+        const trainer = {
+            trainerID: document.getElementById('trainerID').value,
+            trainername: document.getElementById('trainerName').value
+        };
+        
+        await callApi('/trainers', 'POST', trainer);
+        document.getElementById('createTrainerForm').reset();
+        closeCreateTrainerModal();
+        await getAllTrainers();
+    } catch (error) {
+        alert(`Error creating trainer: ${error.message}`);
+    }
 }
 
 async function updateTrainer() {
-    const trainerId = document.getElementById('updateTrainerId').value;
-    const newName = document.getElementById('newTrainerName').value;
-    const { success } = await callApi(`/api/trainers/${trainerId}`, 'PUT', { trainername: newName });
-    if (success) getAllTrainers();
-    else alert('Error updating trainer');
+    try {
+        const trainerId = document.getElementById('updateTrainerId').value;
+        const trainer = {
+            trainerID: document.getElementById('updateTrainerID').value,
+            trainername: document.getElementById('updateTrainerName').value
+        };
+        
+        await callApi(`/trainers/${trainerId}`, 'PUT', trainer);
+        closeUpdateTrainerModal();
+        await getAllTrainers();
+    } catch (error) {
+        alert(`Error updating trainer: ${error.message}`);
+    }
 }
 
-async function deleteTrainer() {
-    const trainerId = document.getElementById('deleteTrainerId').value;
-    const { success } = await callApi(`/api/trainers/${trainerId}`, 'DELETE');
-    if (success) getAllTrainers();
-    else alert('Error deleting trainer');
+async function confirmDeleteTrainer(trainerId) {
+    if (confirm('Are you sure you want to delete this trainer and all their Pokémon?')) {
+        try {
+            await callApi(`/trainers/${trainerId}`, 'DELETE');
+            await getAllTrainers();
+        } catch (error) {
+            alert(`Error deleting trainer: ${error.message}`);
+        }
+    }
 }
 
-document.addEventListener('DOMContentLoaded', getAllTrainers);
+document.addEventListener('DOMContentLoaded', () => {
+    getAllTrainers();
+    
+    window.onclick = function(event) {
+        const createModal = document.getElementById('createTrainerModal');
+        const updateModal = document.getElementById('updateTrainerModal');
+        if (event.target == createModal) closeCreateTrainerModal();
+        if (event.target == updateModal) closeUpdateTrainerModal();
+    }
+});

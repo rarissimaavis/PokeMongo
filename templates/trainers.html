@@ -13,37 +13,40 @@
         </nav>
 
         <h1>Trainers Management</h1>
+        
+        <div class="center-button">
+            <button class="create-button" onclick="openCreateTrainerModal()">Create Trainer</button>
+        </div>
+        
+        <div id="createTrainerModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeCreateTrainerModal()">&times;</span>
+                <h2>Create New Trainer</h2>
+                <form id="createTrainerForm" class="form" onsubmit="event.preventDefault(); createTrainer();">
+                    <input type="text" id="trainerID" placeholder="Trainer ID" required>
+                    <input type="text" id="trainerName" placeholder="Name" required>
+                    <button type="submit">Create Trainer</button>
+                </form>
+            </div>
+        </div>
 
-        <div class="section">
-            <h2>Create Trainer</h2>
-            <form id="createTrainerForm" class="form">
-                <input type="text" id="trainerID" placeholder="Trainer ID" required>
-                <input type="text" id="trainerName" placeholder="Name" required>
-                <button type="button" onclick="createTrainer()">Create Trainer</button>
-            </form>
+        <div id="updateTrainerModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeUpdateTrainerModal()">&times;</span>
+                <h2>Update Trainer</h2>
+                <form id="updateTrainerForm" class="form" onsubmit="event.preventDefault(); updateTrainer();">
+                    <input type="hidden" id="updateTrainerId">
+                    <input type="text" id="updateTrainerID" placeholder="Trainer ID" required>
+                    <input type="text" id="updateTrainerName" placeholder="Name" required>
+                    <button type="submit">Update Trainer</button>
+                </form>
+            </div>
         </div>
 
         <div class="section">
             <h2>All Trainers</h2>
             <button onclick="getAllTrainers()">Refresh List</button>
             <div id="trainersList" class="trainers-container"></div>
-        </div>
-
-        <div class="section">
-            <h2>Update Trainer</h2>
-            <form id="updateTrainerForm" class="form">
-                <input type="text" id="updateTrainerId" placeholder="Trainer ID to update" required>
-                <input type="text" id="newTrainerName" placeholder="New Name" required>
-                <button type="button" onclick="updateTrainer()">Update Trainer</button>
-            </form>
-        </div>
-
-        <div class="section">
-            <h2>Delete Trainer</h2>
-            <form id="deleteTrainerForm" class="form">
-                <input type="text" id="deleteTrainerId" placeholder="Trainer ID to delete" required>
-                <button type="button" onclick="deleteTrainer()">Delete Trainer</button>
-            </form>
         </div>
     </div>
 
