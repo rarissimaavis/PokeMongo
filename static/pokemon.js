@@ -17,10 +17,69 @@ async function callApi(endpoint, method = 'GET', data = null) {
     }
 }
 
-// Display result in any pre element
-function displayResult(elementId, result) {
-    const element = document.getElementById(elementId);
-    element.innerHTML = JSON.stringify(result, null, 2);
+// Display Pokémon as cards
+function displayPokemon(pokemonList) {
+    const container = document.getElementById('pokemonList');
+    
+    if (!pokemonList || pokemonList.length === 0) {
+        container.innerHTML = '<div class="error-message">No Pokémon found</div>';
+        return;
+    }
+
+    container.innerHTML = '';
+    
+    pokemonList.forEach(pokemon => {
+        const card = document.createElement('div');
+        card.className = 'pokemon-card';
+        
+        const type1Class = `type-badge type-${pokemon.type1.toLowerCase()}`;
+        const type2Class = pokemon.type2 ? `type-badge type-${pokemon.type2.toLowerCase()}` : '';
+        
+        card.innerHTML = `
+            <div class="pokemon-header">
+                <h3>${pokemon.pokename}</h3>
+                <div class="pokemon-level">Lv. ${pokemon.pokelevel}</div>
+            </div>
+            <div class="pokemon-id">#${pokemon.place}</div>
+            <div class="pokemon-types">
+                <span class="${type1Class}">${pokemon.type1}</span>
+                ${pokemon.type2 ? `<span class="${type2Class}">${pokemon.type2}</span>` : ''}
+            </div>
+            <div class="pokemon-hp-bar">
+                <div class="hp-text">HP: ${pokemon.hp}/${pokemon.maxhp}</div>
+                <div class="hp-bar-outer">
+                    <div class="hp-bar-inner" style="width: ${(pokemon.hp / pokemon.maxhp) * 100}%"></div>
+                </div>
+            </div>
+            <div class="pokemon-stats">
+                <div class="stat-row">
+                    <span class="stat-name">ATK</span>
+                    <span class="stat-value">${pokemon.attack}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-name">DEF</span>
+                    <span class="stat-value">${pokemon.defense}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-name">SP.ATK</span>
+                    <span class="stat-value">${pokemon.spatk}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-name">SP.DEF</span>
+                    <span class="stat-value">${pokemon.spdef}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-name">SPD</span>
+                    <span class="stat-value">${pokemon.speed}</span>
+                </div>
+            </div>
+            <div class="pokemon-footer">
+                <span class="trainer-info">Trainer ID: ${pokemon.trainerID || 'Wild'}</span>
+            </div>
+        `;
+        
+        container.appendChild(card);
+    });
 }
 
 // Pokémon CRUD functions
@@ -45,34 +104,54 @@ async function addPokemon() {
         const { success, data } = await callApi('/api/pokemon', 'POST', pokemon);
         
         if (success) {
-            displayResult('pokemonList', data);
             document.getElementById('addPokemonForm').reset();
-            getAllPokemon();
+            await getAllPokemon();
         } else {
-            displayResult('pokemonList', { error: 'Failed to add Pokémon', details: data });
+            document.getElementById('pokemonList').innerHTML = `
+                <div class="error-message">Error adding Pokémon: ${data.message || 'Unknown error'}</div>
+            `;
         }
     } catch (error) {
-        displayResult('pokemonList', { error: 'Error adding Pokémon', details: error.message });
+        document.getElementById('pokemonList').innerHTML = `
+            <div class="error-message">Error adding Pokémon: ${error.message}</div>
+        `;
     }
 }
 
 async function getAllPokemon() {
     const { success, data } = await callApi('/api/pokemon');
-    displayResult('pokemonList', success ? data : 'Error fetching Pokémon');
+    if (success) {
+        displayPokemon(data);
+    } else {
+        document.getElementById('pokemonList').innerHTML = `
+            <div class="error-message">Error fetching Pokémon: ${data.message || 'Unknown error'}</div>
+        `;
+    }
 }
 
 async function updatePokemon() {
     const pokemonId = document.getElementById('updatePokemonId').value;
     const newLevel = document.getElementById('newPokemonLevel').value;
     const { success, data } = await callApi(`/api/pokemon/${pokemonId}`, 'PUT', { level: newLevel });
-    displayResult('pokemonList', success ? data : 'Error updating Pokémon');
+    if (success) {
+        await getAllPokemon();
+    } else {
+        document.getElementById('pokemonList').innerHTML = `
+            <div class="error-message">Error updating Pokémon: ${data.message || 'Unknown error'}</div>
+        `;
+    }
 }
 
 async function deletePokemon() {
     const pokemonId = document.getElementById('deletePokemonId').value;
     const { success, data } = await callApi(`/api/pokemon/${pokemonId}`, 'DELETE');
-    displayResult('pokemonList', success ? data : 'Error deleting Pokémon');
+    if (success) {
+        await getAllPokemon();
+    } else {
+        document.getElementById('pokemonList').innerHTML = `
+            <div class="error-message">Error deleting Pokémon: ${data.message || 'Unknown error'}</div>
+        `;
+    }
 }
 
-// Load all Pokémon when page loads
-document.addEventListener('DOMContentLoaded', getAllPokemon); 
+document.addEventListener('DOMContentLoaded', getAllPokemon);
