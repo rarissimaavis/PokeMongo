@@ -1,6 +1,6 @@
 const API_BASE = 'http://localhost:5000';
 
-// Helper function for API calls
+// Helper function
 async function callApi(endpoint, method = 'GET', data = null) {
     const options = {
         method,
@@ -17,41 +17,62 @@ async function callApi(endpoint, method = 'GET', data = null) {
     }
 }
 
-// Display result in any pre element
-function displayResult(elementId, result) {
-    const element = document.getElementById(elementId);
-    element.innerHTML = JSON.stringify(result, null, 2);
+// Display trainers
+function displayTrainersAsCards(trainers) {
+    const list = document.getElementById('trainersList');
+    list.innerHTML = '';
+
+    if (!Array.isArray(trainers) || trainers.length === 0) {
+        list.innerHTML = '<div class="empty-message">No trainers available.</div>';
+        return;
+    }
+
+    trainers.forEach(trainer => {
+        const card = document.createElement('div');
+        card.className = 'trainer-card';
+
+        card.innerHTML = `
+            <div class="trainer-id">ID: ${trainer.trainerID}</div>
+            <div class="trainer-name">${trainer.trainername}</div>
+        `;
+
+        list.appendChild(card);
+    });
 }
 
-// Trainers CRUD functions
+// Load trainers
+async function getAllTrainers() {
+    const { success, data } = await callApi('/api/trainers');
+    if (success) displayTrainersAsCards(data);
+    else alert('Error fetching trainers');
+}
+
+// Create
 async function createTrainer() {
     const trainer = {
         trainerID: document.getElementById('trainerID').value,
-        name: document.getElementById('trainerName').value
+        trainername: document.getElementById('trainerName').value
     };
-    const { success, data } = await callApi('/api/trainers', 'POST', trainer);
-    displayResult('trainersList', success ? data : 'Error creating trainer');
+    const { success } = await callApi('/api/trainers', 'POST', trainer);
+    if (success) getAllTrainers();
+    else alert('Error creating trainer');
 }
 
-async function getAllTrainers() {
-    const { success, data } = await callApi('/api/trainers');
-    displayResult('trainersList', success ? data : 'Error fetching trainers');
-}
-
+// Update
 async function updateTrainer() {
     const trainerId = document.getElementById('updateTrainerId').value;
     const newName = document.getElementById('newTrainerName').value;
-    const { success, data } = await callApi(`/api/trainers/${trainerId}`, 'PUT', { name: newName });
-    displayResult('trainersList', success ? data : 'Error updating trainer');
+    const { success } = await callApi(`/api/trainers/${trainerId}`, 'PUT', { trainername: newName });
+    if (success) getAllTrainers();
+    else alert('Error updating trainer');
 }
 
+// Delete
 async function deleteTrainer() {
     const trainerId = document.getElementById('deleteTrainerId').value;
-    const { success, data } = await callApi(`/api/trainers/${trainerId}`, 'DELETE');
-    displayResult('trainersList', success ? data : 'Error deleting trainer');
+    const { success } = await callApi(`/api/trainers/${trainerId}`, 'DELETE');
+    if (success) getAllTrainers();
+    else alert('Error deleting trainer');
 }
 
-// Load all trainers when page loads
 document.addEventListener('DOMContentLoaded', getAllTrainers);
-
-

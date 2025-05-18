@@ -11,9 +11,9 @@
         <nav>
             <a href="/" class="nav-link">← Back to Home</a>
         </nav>
-        
+
         <h1>Trainers Management</h1>
-        
+
         <div class="section">
             <h2>Create Trainer</h2>
             <form id="createTrainerForm" class="form">
@@ -22,13 +22,13 @@
                 <button type="button" onclick="createTrainer()">Create Trainer</button>
             </form>
         </div>
-        
+
         <div class="section">
             <h2>All Trainers</h2>
             <button onclick="getAllTrainers()">Refresh List</button>
-            <pre id="trainersList"></pre>
+            <div id="trainersList" class="trainers-container"></div>
         </div>
-        
+
         <div class="section">
             <h2>Update Trainer</h2>
             <form id="updateTrainerForm" class="form">
@@ -37,7 +37,7 @@
                 <button type="button" onclick="updateTrainer()">Update Trainer</button>
             </form>
         </div>
-        
+
         <div class="section">
             <h2>Delete Trainer</h2>
             <form id="deleteTrainerForm" class="form">
@@ -46,7 +46,7 @@
             </form>
         </div>
     </div>
-    
+
     <script src="/static/trainers.js"></script>
 </body>
 </html>
