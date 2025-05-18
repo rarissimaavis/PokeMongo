@@ -83,6 +83,21 @@ function displayPokemon(pokemonList) {
 }
 
 // Pokémon CRUD functions
+function openCreateModal() {
+    document.getElementById('createModal').style.display = 'block';
+}
+
+function closeCreateModal() {
+    document.getElementById('createModal').style.display = 'none';
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('createModal');
+    if (event.target == modal) {
+        closeCreateModal();
+    }
+}
+
 async function addPokemon() {
     try {
         const pokemon = {
@@ -105,6 +120,7 @@ async function addPokemon() {
         
         if (success) {
             document.getElementById('addPokemonForm').reset();
+            closeCreateModal();
             await getAllPokemon();
         } else {
             document.getElementById('pokemonList').innerHTML = `
