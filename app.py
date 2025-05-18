@@ -32,7 +32,7 @@ def get_mongo_client():
             retryWrites=True,
             retryReads=True,
             w='majority',
-            readPreference='secondaryPreferred'
+            readPreference='primary'
         )
         
         client.admin.command('ping')
