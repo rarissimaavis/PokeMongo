@@ -48,7 +48,14 @@ python convert.py
 
 1. Make sure MongoDB is running on your system
 
-2. Start the Flask application:
+2. Start MongoDB replica set instances
+```bash
+mongod --config mongodb-config/mongod-1.conf
+mongod --config mongodb-config/mongod-2.conf
+mongod --config mongodb-config/mongod-3.conf
+```
+
+3. Start the Flask application:
 ```bash
 python app.py
 ```
