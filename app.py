@@ -357,8 +357,7 @@ def get_trainers_with_strong_pokemon(min_level):
                 "_id": 0,
                 "trainer": {
                     "trainerID": "$_id",
-                    "name": "$trainer_info.trainername",
-                    "total_strong_pokemon": "$pokemon_count"
+                    "name": "$trainer_info.trainername"
                 },
                 "pokemon": "$pokemon_list"
             }},

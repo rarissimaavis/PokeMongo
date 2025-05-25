@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Join Operations</title>
+    <title>Trainers with Strong Pokémon</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -12,15 +12,23 @@
             <a href="/" class="nav-link">← Back to Home</a>
         </nav>
         
-        <h1>Join Operations</h1>
+        <h1>Trainers with Strong Pokémon</h1>
         
         <div class="section">
-            <h2>Get Strong Pokémon</h2>
+            <h2>Find Trainers with Pokémon Above Level</h2>
             <form id="strongPokemonForm" class="form">
-                <input type="number" id="minLevel" placeholder="Minimum Level" value="30" required>
-                <button type="button" onclick="getStrongPokemon()">Find Strong Pokémon</button>
+                <input type="number" id="minLevel" placeholder="Minimum Level" required>
+                <button type="button" onclick="getStrongPokemon()">Search</button>
             </form>
-            <pre id="strongPokemonResult"></pre>
+            <div id="trainersList" class="trainers-container"></div>
+        </div>
+    </div>
+
+    <div id="viewPokemonModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeViewPokemonModal()">&times;</span>
+            <h2>Strong Pokémon for <span id="pokemonModalTrainerName"></span></h2>
+            <div id="pokemonList" class="pokemon-container"></div>
         </div>
     </div>
     

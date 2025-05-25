@@ -551,3 +551,17 @@ button:hover {
     left: 15px;
     bottom: 15px;
 }
+
+.trainer-actions-left {
+    position: absolute;
+    left: 15px;
+    bottom: 15px;
+}
+
+.trainer-actions {
+    position: absolute;
+    right: 15px;
+    bottom: 15px;
+    display: flex;
+    gap: 8px;
+}
