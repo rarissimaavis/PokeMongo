@@ -10,8 +10,8 @@
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/rarissimaavis/BD2.git
-cd BD2
+git clone https://github.com/rarissimaavis/PokeMongo.git
+cd PokeMongo
 ```
 
 2. Create and activate a virtual environment:
