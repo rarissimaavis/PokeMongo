@@ -38,6 +38,9 @@ async function displayTrainersAsCards(trainers) {
         card.innerHTML = `
             <div class="trainer-id">ID: ${trainer.trainerID}</div>
             <div class="trainer-name">${trainer.trainername}</div>
+            <div class="trainer-actions-left">
+                <button class="view-btn" onclick="openViewPokemonModal('${trainer.trainerID}', '${trainer.trainername}')">View Pokémon</button>
+            </div>
             <div class="trainer-actions">
                 <button class="update-btn" onclick="openUpdateTrainerModal('${trainer._id}')">Update</button>
                 <button class="delete-btn" onclick="confirmDeleteTrainer('${trainer._id}')">Delete</button>
@@ -134,7 +137,78 @@ document.addEventListener('DOMContentLoaded', () => {
     window.onclick = function(event) {
         const createModal = document.getElementById('createTrainerModal');
         const updateModal = document.getElementById('updateTrainerModal');
+        const viewModal = document.getElementById('viewPokemonModal');
         if (event.target == createModal) closeCreateTrainerModal();
         if (event.target == updateModal) closeUpdateTrainerModal();
+        if (event.target == viewModal) closeViewPokemonModal();
     }
 });
+
+function openViewPokemonModal(trainerId, trainerName) {
+    document.getElementById('pokemonModalTrainerName').textContent = trainerName;
+    document.getElementById('viewPokemonModal').style.display = 'block';
+    fetchTrainerPokemon(trainerId);
+}
+
+function closeViewPokemonModal() {
+    document.getElementById('viewPokemonModal').style.display = 'none';
+}
+
+async function fetchTrainerPokemon(trainerId) {
+    try {
+        const response = await callApi(`/trainers/${trainerId}/pokemon`);
+        displayPokemonList(response.pokemon);
+    } catch (error) {
+        console.error('Error fetching Pokémon:', error);
+        document.getElementById('pokemonList').innerHTML = '<div class="empty-message">Error loading Pokémon</div>';
+    }
+}
+
+function displayPokemonList(pokemon) {
+    const container = document.getElementById('pokemonList');
+    container.innerHTML = '';
+
+    if (!Array.isArray(pokemon) || pokemon.length === 0) {
+        container.innerHTML = '<div class="empty-message">This trainer has no Pokémon</div>';
+        return;
+    }
+
+    pokemon.forEach(poke => {
+        const card = document.createElement('div');
+        card.className = 'pokemon-card';
+        
+        const typeBadges = [];
+        if (poke.type1) typeBadges.push(`<span class="type-badge type-${poke.type1.toLowerCase()}">${poke.type1}</span>`);
+        if (poke.type2) typeBadges.push(`<span class="type-badge type-${poke.type2.toLowerCase()}">${poke.type2}</span>`);
+        
+        card.innerHTML = `
+            <div class="pokemon-header">
+                <h3>${poke.pokename || 'Unknown'}</h3>
+                <span class="pokemon-level">Lv. ${poke.pokelevel || '?'}</span>
+            </div>
+            <div class="pokemon-types">
+                ${typeBadges.join('')}
+            </div>
+            <div class="pokemon-stats">
+                <div class="stat-row">
+                    <span class="stat-name">HP:</span>
+                    <span class="stat-value">${poke.hp || '?'}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-name">Attack:</span>
+                    <span class="stat-value">${poke.attack || '?'}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-name">Defense:</span>
+                    <span class="stat-value">${poke.defense || '?'}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-name">Speed:</span>
+                    <span class="stat-value">${poke.speed || '?'}</span>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(card);
+    });
+}
