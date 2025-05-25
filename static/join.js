@@ -23,13 +23,6 @@ function displayResult(elementId, result) {
     element.innerHTML = JSON.stringify(result, null, 2);
 }
 
-// Get Trainer with their Pokémon
-async function getTrainerWithPokemon() {
-    const trainerId = document.getElementById('trainerPokemonId').value;
-    const { success, data } = await callApi(`/api/trainers/${trainerId}/pokemon`);
-    displayResult('trainerPokemonResult', success ? data : 'Error fetching trainer with Pokémon');
-}
-
 // Get Strong Pokémon (above certain level)
 async function getStrongPokemon() {
     const minLevel = document.getElementById('minLevel').value;
