@@ -6,14 +6,33 @@
     <title>Pokémon Trainers Manager</title>
     <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" type="image/png">
     <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rubik:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
-        <h1>Pokémon Trainers Manager</h1>
+        <div class="header">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Pokémon Logo" class="logo">
+            <h1>Poké</span>Mongo</h1>
+        </div>
+        
         <div class="menu">
-            <a href="/pokemon" class="menu-button">Pokémon Management</a>
-            <a href="/trainers" class="menu-button">Trainers Management</a>
-            <a href="/join" class="menu-button">Trainers with Strong Pokémon</a>
+            <a href="/pokemon" class="menu-button pokemon-btn">
+                <div class="button-content">
+                    <span class="button-text">Pokémon Management</span>
+                </div>
+            </a>
+            
+            <a href="/trainers" class="menu-button trainer-btn">
+                <div class="button-content">
+                    <span class="button-text">Trainers Management</span>
+                </div>
+            </a>
+            
+            <a href="/join" class="menu-button strong-btn">
+                <div class="button-content">
+                    <span class="button-text">Strong Trainers</span>
+                </div>
+            </a>
         </div>
     </div>
 </body>
