@@ -120,8 +120,9 @@ def validate_trainer_exists(trainer_id, session=None):
 def get_trainers():
     """Get all trainers"""
     try:
-        trainers = execute_with_retry(lambda: list(trainers_col.find()))
-        return jsonify(clean_id(trainers)), 200
+        with client.start_session() as session:
+            trainers = execute_with_retry(lambda: list(trainers_col.find(session=session)))
+            return jsonify(clean_id(trainers)), 200
     except Exception as e:
         return jsonify({"error": f"Failed to fetch trainers: {str(e)}"}), 500
 
@@ -129,10 +130,11 @@ def get_trainers():
 def get_single_trainer(trainer_id):
     """Get a single trainer by ID"""
     try:
-        trainer = trainers_col.find_one({"_id": ObjectId(trainer_id)})
-        if not trainer:
-            return jsonify({"error": "Trainer not found"}), 404
-        return jsonify(clean_id(trainer)), 200
+        with client.start_session() as session:
+            trainer = trainers_col.find_one({"_id": ObjectId(trainer_id)}, session=session)
+            if not trainer:
+                return jsonify({"error": "Trainer not found"}), 404
+            return jsonify(clean_id(trainer)), 200
     except Exception as e:
         return jsonify({"error": f"Failed to fetch trainer: {str(e)}"}), 500
 
@@ -161,36 +163,56 @@ def update_trainer(trainer_id):
         if not data:
             return jsonify({"error": "No update data provided"}), 400
 
-        result = trainers_col.update_one(
-            {"_id": ObjectId(trainer_id)},
-            {"$set": data}
-        )
-        
-        if result.matched_count == 0:
-            return jsonify({"error": "Trainer not found"}), 404
-            
-        return jsonify({
-            "modified_count": result.modified_count,
-            "message": "Trainer updated successfully"
-        }), 200
+        with client.start_session() as session:
+            with session.start_transaction():
+                # First verify trainer exists
+                trainer = trainers_col.find_one(
+                    {"_id": ObjectId(trainer_id)}, 
+                    session=session
+                )
+                if not trainer:
+                    return jsonify({"error": "Trainer not found"}), 404
+                
+                result = trainers_col.update_one(
+                    {"_id": ObjectId(trainer_id)},
+                    {"$set": data},
+                    session=session
+                )
+                
+                return jsonify({
+                    "modified_count": result.modified_count,
+                    "message": "Trainer updated successfully"
+                }), 200
     except Exception as e:
         return jsonify({"error": f"Failed to update trainer: {str(e)}"}), 500
 
 @app.route('/api/trainers/<string:trainer_id>', methods=['DELETE'])
 def delete_trainer(trainer_id):
     """Delete trainer and their pokemon"""
-    try:        
-        result_trainer = trainers_col.delete_one({"_id": ObjectId(trainer_id)})
-        result_pokemon = pokemon_col.delete_many({"trainerID": trainer_id})
-        
-        if result_trainer.deleted_count == 0:
-            return jsonify({"error": "Trainer not found"}), 404
-            
-        return jsonify({
-            "trainer_deleted": result_trainer.deleted_count,
-            "pokemon_deleted": result_pokemon.deleted_count,
-            "message": "Trainer and associated pokemon deleted"
-        }), 200
+    try:
+        with client.start_session() as session:
+            with session.start_transaction():
+                trainer = trainers_col.find_one(
+                    {"_id": ObjectId(trainer_id)}, 
+                    session=session
+                )
+                if not trainer:
+                    return jsonify({"error": "Trainer not found"}), 404
+                
+                result_trainer = trainers_col.delete_one(
+                    {"_id": ObjectId(trainer_id)}, 
+                    session=session
+                )
+                result_pokemon = pokemon_col.delete_many(
+                    {"trainerID": trainer_id}, 
+                    session=session
+                )
+                
+                return jsonify({
+                    "trainer_deleted": result_trainer.deleted_count,
+                    "pokemon_deleted": result_pokemon.deleted_count,
+                    "message": "Trainer and associated pokemon deleted"
+                }), 200
     except Exception as e:
         return jsonify({"error": f"Failed to delete trainer: {str(e)}"}), 500
 
@@ -199,8 +221,9 @@ def delete_trainer(trainer_id):
 def get_pokemon():
     """Get all pokemon"""
     try:
-        pokemons = list(pokemon_col.find())
-        return jsonify(clean_id(pokemons)), 200
+        with client.start_session() as session:
+            pokemons = list(pokemon_col.find(session=session))
+            return jsonify(clean_id(pokemons)), 200
     except Exception as e:
         return jsonify({"error": f"Failed to fetch pokemon: {str(e)}"}), 500
     
@@ -208,10 +231,11 @@ def get_pokemon():
 def get_single_pokemon(pokemon_id):
     """Get a single pokemon by ID"""
     try:
-        pokemon = pokemon_col.find_one({"_id": ObjectId(pokemon_id)})
-        if not pokemon:
-            return jsonify({"error": "Pokemon not found"}), 404
-        return jsonify(clean_id(pokemon)), 200
+        with client.start_session() as session:
+            pokemon = pokemon_col.find_one({"_id": ObjectId(pokemon_id)}, session=session)
+            if not pokemon:
+                return jsonify({"error": "Pokemon not found"}), 404
+            return jsonify(clean_id(pokemon)), 200
     except Exception as e:
         return jsonify({"error": f"Failed to fetch pokemon: {str(e)}"}), 500
 
@@ -297,34 +321,34 @@ def delete_pokemon(pokemon_id):
 def get_trainer_pokemon(trainer_id):
     """Get trainer with all their pokemon"""
     try:
-        pipeline = [
-            {"$match": {"trainerID": trainer_id}},
-            {"$lookup": {
-                "from": "Pokemon",
-                "localField": "trainerID",
-                "foreignField": "trainerID",
-                "as": "pokemon"
-            }},
-            {"$project": {
-                "_id": 0,
-                "trainerID": 1,
-                "trainername": 1,
-                "pokemon": 1
-            }}
-        ]
-        
-        result = list(trainers_col.aggregate(pipeline))
-        if not result:
-            return jsonify({"error": "Trainer not found"}), 404
+        with client.start_session() as session:
+            pipeline = [
+                {"$match": {"trainerID": trainer_id}},
+                {"$lookup": {
+                    "from": "Pokemon",
+                    "localField": "trainerID",
+                    "foreignField": "trainerID",
+                    "as": "pokemon"
+                }},
+                {"$project": {
+                    "_id": 0,
+                    "trainerID": 1,
+                    "trainername": 1,
+                    "pokemon": 1
+                }}
+            ]
+            
+            result = list(trainers_col.aggregate(pipeline, session=session))
+            if not result:
+                return jsonify({"error": "Trainer not found"}), 404
 
-        return jsonify({
-            "trainer": {
-                "trainerID": result[0]["trainerID"],
-                "trainername": result[0]["trainername"]
-            },
-            "pokemon": clean_id(result[0]["pokemon"])
-        }), 200
-
+            return jsonify({
+                "trainer": {
+                    "trainerID": result[0]["trainerID"],
+                    "trainername": result[0]["trainername"]
+                },
+                "pokemon": clean_id(result[0]["pokemon"])
+            }), 200
     except Exception as e:
         return jsonify({"error": f"Failed to fetch trainer pokemon: {str(e)}"}), 500
 
@@ -332,45 +356,45 @@ def get_trainer_pokemon(trainer_id):
 def get_trainers_with_strong_pokemon(min_level):
     """Get trainers with Pokémon above specified level"""
     try:
-        pipeline = [
-            {"$match": {"pokelevel": {"$gt": min_level}}},
-            {"$group": {
-                "_id": "$trainerID",
-                "pokemon_count": {"$sum": 1},
-                "pokemon_list": {
-                    "$push": {
-                        "name": "$pokename",
-                        "level": "$pokelevel",
-                        "type1": "$type1",
-                        "type2": "$type2"
+        with client.start_session() as session:
+            pipeline = [
+                {"$match": {"pokelevel": {"$gt": min_level}}},
+                {"$group": {
+                    "_id": "$trainerID",
+                    "pokemon_count": {"$sum": 1},
+                    "pokemon_list": {
+                        "$push": {
+                            "name": "$pokename",
+                            "level": "$pokelevel",
+                            "type1": "$type1",
+                            "type2": "$type2"
+                        }
                     }
-                }
-            }},
-            {"$lookup": {
-                "from": "Trainers",
-                "localField": "_id",
-                "foreignField": "trainerID",
-                "as": "trainer_info"
-            }},
-            {"$unwind": "$trainer_info"},
-            {"$project": {
-                "_id": 0,
-                "trainer": {
-                    "trainerID": "$_id",
-                    "name": "$trainer_info.trainername"
-                },
-                "pokemon": "$pokemon_list"
-            }},
-            {"$sort": {"trainer.trainerID": 1}}
-        ]
+                }},
+                {"$lookup": {
+                    "from": "Trainers",
+                    "localField": "_id",
+                    "foreignField": "trainerID",
+                    "as": "trainer_info"
+                }},
+                {"$unwind": "$trainer_info"},
+                {"$project": {
+                    "_id": 0,
+                    "trainer": {
+                        "trainerID": "$_id",
+                        "name": "$trainer_info.trainername"
+                    },
+                    "pokemon": "$pokemon_list"
+                }},
+                {"$sort": {"trainer.trainerID": 1}}
+            ]
 
-        result = list(pokemon_col.aggregate(pipeline))
-        
-        if not result:
-            return jsonify({"message": f"No trainers found with Pokémon above level {min_level}"}), 200
+            result = list(pokemon_col.aggregate(pipeline, session=session))
             
-        return jsonify({"results": result}), 200
-        
+            if not result:
+                return jsonify({"message": f"No trainers found with Pokémon above level {min_level}"}), 200
+                
+            return jsonify({"results": result}), 200
     except Exception as e:
         return jsonify({"error": f"Failed to fetch strong pokemon trainers: {str(e)}"}), 500
 
@@ -379,8 +403,9 @@ def get_trainers_with_strong_pokemon(min_level):
 def check_db_health():
     """Check database connection health"""
     try:
-        client.admin.command('ping')
-        return jsonify({"status": "healthy", "message": "Database connection is active"}), 200
+        with client.start_session() as session:
+            client.admin.command('ping', session=session)
+            return jsonify({"status": "healthy", "message": "Database connection is active"}), 200
     except Exception as e:
         return jsonify({"status": "unhealthy", "error": str(e)}), 503
 
