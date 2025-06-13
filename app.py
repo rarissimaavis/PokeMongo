@@ -165,7 +165,6 @@ def update_trainer(trainer_id):
 
         with client.start_session() as session:
             with session.start_transaction():
-                # First verify trainer exists
                 trainer = trainers_col.find_one(
                     {"_id": ObjectId(trainer_id)}, 
                     session=session
